@@ -3,6 +3,9 @@ import cors from "cors";
 import dotenv from "dotenv";
 import authRoutes from "./routes/auth.routes";
 import { errorHandler } from "./middleware/errorHandler";
+import entryRoutes from "./routes/entry.routes";
+import leaderboardRoutes from "./routes/leaderboard.routes";
+import quoteRoutes from "./routes/quote.routes";
 
 // Load environment variables
 dotenv.config();
@@ -22,6 +25,12 @@ app.get("/health", (req, res) => {
 
 // Routes
 app.use("/api/v1/auth", authRoutes);
+
+app.use("/api/v1/entries", entryRoutes);
+
+app.use("/api/v1/leaderboard", leaderboardRoutes);
+
+app.use("/api/v1/quotes", quoteRoutes);
 
 // Error handler (must be last)
 app.use(errorHandler);
