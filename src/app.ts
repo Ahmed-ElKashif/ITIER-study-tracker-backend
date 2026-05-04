@@ -6,6 +6,7 @@ import { errorHandler } from "./middleware/errorHandler";
 import entryRoutes from "./routes/entry.routes";
 import leaderboardRoutes from "./routes/leaderboard.routes";
 import quoteRoutes from "./routes/quote.routes";
+import supervisorRoutes from "./routes/supervisor.routes";
 
 // Load environment variables
 dotenv.config();
@@ -31,6 +32,8 @@ app.use("/api/v1/entries", entryRoutes);
 app.use("/api/v1/leaderboard", leaderboardRoutes);
 
 app.use("/api/v1/quotes", quoteRoutes);
+
+app.use("/api/v1/supervisor", supervisorRoutes);
 
 // Error handler (must be last)
 app.use(errorHandler);
