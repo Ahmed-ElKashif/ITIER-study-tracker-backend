@@ -7,6 +7,9 @@ import entryRoutes from "./routes/entry.routes";
 import leaderboardRoutes from "./routes/leaderboard.routes";
 import quoteRoutes from "./routes/quote.routes";
 import supervisorRoutes from "./routes/supervisor.routes";
+import helmet from "helmet";
+import rateLimit from "express-rate-limit";
+import hpp from "hpp";
 
 // Load environment variables
 dotenv.config();
@@ -14,16 +17,31 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Security Middleware
+app.use(helmet()); // Set security HTTP headers
+
+// Rate limiting
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // limit each IP to 100 requests per windowMs
+  message: "Too many requests from this IP, please try again after 15 minutes",
+});
+app.use("/api", limiter);
+
 // Middleware
 app.use(
   cors({
-    origin: "*", // Allows all devices (like your phone) to connect
+    origin:
+      process.env.NODE_ENV === "production"
+        ? ["https://your-production-url.com"]
+        : "*",
     methods: ["GET", "POST", "PUT", "DELETE"],
     allowedHeaders: ["Content-Type", "Authorization"],
   }),
 );
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: "10kb" })); // Body limit is 10kb
+app.use(express.urlencoded({ extended: true, limit: "10kb" }));
+app.use(hpp()); // Prevent HTTP Parameter Pollution
 
 // Health check
 app.get("/health", (req, res) => {

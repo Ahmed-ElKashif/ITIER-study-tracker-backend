@@ -1,15 +1,36 @@
 import { Request, Response, NextFunction } from "express";
+import { AppError } from "../utils/AppError";
 
 export const errorHandler = (
-  err: Error,
+  err: any,
   req: Request,
   res: Response,
   next: NextFunction,
 ) => {
-  console.error("Error:", err);
+  err.statusCode = err.statusCode || 500;
+  err.status = err.status || "error";
 
-  res.status(500).json({
-    error: "Internal server error",
-    message: process.env.NODE_ENV === "development" ? err.message : undefined,
-  });
+  if (process.env.NODE_ENV === "development") {
+    console.error("Error 💥:", err);
+    res.status(err.statusCode).json({
+      status: err.status,
+      error: err,
+      message: err.message,
+      stack: err.stack,
+    });
+  } else {
+    // Production
+    if (err.isOperational) {
+      res.status(err.statusCode).json({
+        status: err.status,
+        message: err.message,
+      });
+    } else {
+      console.error("ERROR 💥", err);
+      res.status(500).json({
+        status: "error",
+        message: "Something went very wrong!",
+      });
+    }
+  }
 };
