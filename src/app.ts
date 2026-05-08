@@ -1,6 +1,8 @@
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
+import helmet from "helmet";
+import rateLimit from "express-rate-limit";
 import authRoutes from "./routes/auth.routes";
 import { errorHandler } from "./middleware/errorHandler";
 import entryRoutes from "./routes/entry.routes";

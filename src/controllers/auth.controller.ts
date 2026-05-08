@@ -1,4 +1,4 @@
-import { Request, Response } from "express";
+import { Request, Response, NextFunction } from "express";
 import { RegisterRequest, LoginRequest } from "../types";
 import { registerUser, loginUser } from "../services/auth.service";
 
