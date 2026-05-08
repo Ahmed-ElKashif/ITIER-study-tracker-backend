@@ -1,7 +1,10 @@
-import express, { Request, Response, NextFunction } from "express";
+import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
+import helmet from "helmet";
+import rateLimit from "express-rate-limit";
 import authRoutes from "./routes/auth.routes";
+import { errorHandler } from "./middleware/errorHandler";
 import entryRoutes from "./routes/entry.routes";
 import leaderboardRoutes from "./routes/leaderboard.routes";
 import quoteRoutes from "./routes/quote.routes";
@@ -12,32 +15,41 @@ import trackRoutes from "./routes/track.routes";
 dotenv.config();
 
 const app = express();
+const PORT = process.env.PORT || 3000;
 
-// ── CORS — MUST be first ──────────────────────────────────────────────────────
-// React Native apps don't send an Origin header, so we allow all origins.
-// Security is handled by JWT tokens on protected routes.
+// Security headers
+app.use(helmet());
+
+// Rate limiting
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 100,
+  message: "Too many requests from this IP, please try again after 15 minutes",
+});
+app.use("/api", limiter);
+
+// CORS — allow all origins (React Native doesn't send Origin header)
 app.use(
   cors({
-    origin: (_origin, callback) => callback(null, true),
-    credentials: true,
+    origin: "*",
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
-  })
+  }),
 );
 app.options("*", cors());
 
-// ── Body parsing ──────────────────────────────────────────────────────────────
+// Body parsing
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// ── Request logger ────────────────────────────────────────────────────────────
-app.use((req: Request, _res: Response, next: NextFunction) => {
+// Request logger
+app.use((req, _res, next) => {
   console.log(`[${new Date().toISOString()}] ${req.method} ${req.path}`);
   next();
 });
 
-// ── Health check ──────────────────────────────────────────────────────────────
-app.get("/health", (_req: Request, res: Response) => {
+// Health check
+app.get("/health", (_req, res) => {
   res.json({
     status: "ok",
     timestamp: new Date().toISOString(),
@@ -45,7 +57,7 @@ app.get("/health", (_req: Request, res: Response) => {
   });
 });
 
-// ── Routes ────────────────────────────────────────────────────────────────────
+// Routes
 app.use("/api/v1/auth", authRoutes);
 app.use("/api/v1/entries", entryRoutes);
 app.use("/api/v1/leaderboard", leaderboardRoutes);
@@ -54,8 +66,8 @@ app.use("/api/v1/supervisor", supervisorRoutes);
 app.use("/api/v1/admin", adminRoutes);
 app.use("/api/v1/tracks", trackRoutes);
 
-// ── 404 catch-all ─────────────────────────────────────────────────────────────
-app.use((req: Request, res: Response) => {
+// 404 catch-all
+app.use((req, res) => {
   res.status(404).json({
     error: "Route not found",
     path: req.path,
@@ -63,21 +75,13 @@ app.use((req: Request, res: Response) => {
   });
 });
 
-// ── Global error handler ──────────────────────────────────────────────────────
-app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
-  console.error("Unhandled error:", err);
-  const status = err.statusCode || err.status || 500;
-  res.status(status).json({
-    error: err.message || "Internal server error",
-  });
-});
+// Error handler (must be last)
+app.use(errorHandler);
 
-// ── Local dev only — Vercel uses exported app, not listen() ──────────────────
-if (process.env.NODE_ENV !== "production") {
-  const PORT = process.env.PORT || 3000;
-  app.listen(PORT, () => {
-    console.log(`🚀 Server running on http://localhost:${PORT}`);
-  });
-}
+// Start server — always called, Vercel ignores the port but needs this to run
+app.listen(PORT, () => {
+  console.log(`🚀 Server running on http://localhost:${PORT}`);
+  console.log(`📊 Environment: ${process.env.NODE_ENV || "development"}`);
+});
 
 export default app;
