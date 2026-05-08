@@ -7,7 +7,7 @@ declare global {
         userId: number;
         username: string;
         role: Role;
-        trackId: number;
+        trackId: number | null; // null for ADMIN users
       };
     }
   }

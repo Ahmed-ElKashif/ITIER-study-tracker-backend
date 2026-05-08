@@ -8,13 +8,14 @@ export interface RegisterRequest {
   email: string;
   password: string;
   fullName: string;
-  role: "STUDENT" | "SUPERVISOR";
-  trackId: number;
+  trackId: number | string; // String from form body, service normalises to int
+  // NOTE: role is NOT included — public registration is STUDENT only.
+  // Supervisors are created by admins via POST /api/v1/admin/supervisors.
 }
 
 export interface JWTPayload {
   userId: number;
   username: string;
-  role: "STUDENT" | "SUPERVISOR";
-  trackId: number;
+  role: "STUDENT" | "SUPERVISOR" | "ADMIN";
+  trackId: number | null; // Null for admin users
 }

@@ -1,40 +1,33 @@
 import { Request, Response } from "express";
-import { prisma } from "../config/prisma";
+import {
+  createEntry,
+  getUserEntries,
+  updateEntry,
+  deleteEntry,
+} from "../services/entry.service";
 
-// Create study entry
-export const createEntry = async (req: Request, res: Response) => {
+// POST /api/v1/entries
+export const createEntryHandler = async (req: Request, res: Response) => {
   try {
     const { subject, hours, date, notes } = req.body;
-    const userId = req.user!.userId;
 
-    // Validation
     if (!subject || !hours || !date) {
-      return res
-        .status(400)
-        .json({ error: "Subject, hours, and date are required" });
+      return res.status(400).json({ error: "Subject, hours, and date are required" });
     }
 
     if (hours <= 0) {
       return res.status(400).json({ error: "Hours must be greater than 0" });
     }
 
-    const entryDate = new Date(date);
-    if (entryDate > new Date()) {
-      return res.status(400).json({ error: "Cannot log future dates" });
-    }
-
-    // Create entry
-    const entry = await prisma.studyEntry.create({
-      data: {
-        userId,
-        subject,
-        hours: parseFloat(hours),
-        date: entryDate,
-        notes: notes || null,
-      },
+    const entry = await createEntry({
+      userId: req.user!.userId,
+      subject,
+      hours: parseFloat(hours),
+      date: new Date(date),
+      notes,
     });
 
-    res.status(201).json({
+    return res.status(201).json({
       success: true,
       data: {
         entryId: entry.id,
@@ -43,42 +36,26 @@ export const createEntry = async (req: Request, res: Response) => {
         date: entry.date,
       },
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Create entry error:", error);
-    res.status(500).json({ error: "Failed to create entry" });
+    return res.status(error.statusCode || 500).json({ error: error.message || "Failed to create entry" });
   }
 };
 
-// Get user's entries
-export const getUserEntries = async (req: Request, res: Response) => {
+// GET /api/v1/entries/me
+export const getUserEntriesHandler = async (req: Request, res: Response) => {
   try {
-    const userId = req.user!.userId;
     const { startDate, endDate } = req.query;
 
-    // Build where clause
-    const where: any = { userId };
+    const result = await getUserEntries(
+      req.user!.userId,
+      startDate ? new Date(startDate as string) : undefined,
+      endDate ? new Date(endDate as string) : undefined,
+    );
 
-    if (startDate || endDate) {
-      where.date = {};
-      if (startDate) where.date.gte = new Date(startDate as string);
-      if (endDate) where.date.lte = new Date(endDate as string);
-    }
-
-    // Fetch entries
-    const entries = await prisma.studyEntry.findMany({
-      where,
-      orderBy: { date: "desc" },
-    });
-
-    // Calculate totals
-    const totalHours = await prisma.studyEntry.aggregate({
-      where: { userId },
-      _sum: { hours: true },
-    });
-
-    res.json({
+    return res.json({
       success: true,
-      data: entries.map((e) => ({
+      data: result.entries.map((e) => ({
         id: e.id,
         subject: e.subject,
         hours: e.hours.toString(),
@@ -86,56 +63,36 @@ export const getUserEntries = async (req: Request, res: Response) => {
         notes: e.notes,
       })),
       meta: {
-        totalHours: totalHours._sum.hours?.toString() || "0",
-        totalEntries: entries.length,
+        totalHours: result.totalHours,
+        totalEntries: result.totalEntries,
       },
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Get entries error:", error);
-    res.status(500).json({ error: "Failed to fetch entries" });
+    return res.status(error.statusCode || 500).json({ error: error.message || "Failed to fetch entries" });
   }
 };
 
-// Update entry
-export const updateEntry = async (
+// PUT /api/v1/entries/:entryId
+export const updateEntryHandler = async (
   req: Request<{ entryId: string }>,
   res: Response,
 ) => {
   try {
-    const { entryId } = req.params;
     const { hours, notes } = req.body;
-    const userId = req.user!.userId;
 
-    // Check ownership
-    const entry = await prisma.studyEntry.findUnique({
-      where: { id: parseInt(entryId) },
-    });
-
-    if (!entry) {
-      return res.status(404).json({ error: "Entry not found" });
-    }
-
-    if (entry.userId !== userId) {
-      return res
-        .status(403)
-        .json({ error: "Not authorized to update this entry" });
-    }
-
-    // Validate hours if provided
     if (hours !== undefined && hours <= 0) {
       return res.status(400).json({ error: "Hours must be greater than 0" });
     }
 
-    // Update entry
-    const updated = await prisma.studyEntry.update({
-      where: { id: parseInt(entryId) },
-      data: {
-        ...(hours !== undefined && { hours: parseFloat(hours) }),
-        ...(notes !== undefined && { notes }),
-      },
+    const updated = await updateEntry({
+      entryId: parseInt(req.params.entryId, 10),
+      userId: req.user!.userId,
+      ...(hours !== undefined && { hours: parseFloat(hours) }),
+      ...(notes !== undefined && { notes }),
     });
 
-    res.json({
+    return res.json({
       success: true,
       data: {
         id: updated.id,
@@ -145,44 +102,22 @@ export const updateEntry = async (
         notes: updated.notes,
       },
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Update entry error:", error);
-    res.status(500).json({ error: "Failed to update entry" });
+    return res.status(error.statusCode || 500).json({ error: error.message || "Failed to update entry" });
   }
 };
 
-// Delete entry
-export const deleteEntry = async (
+// DELETE /api/v1/entries/:entryId
+export const deleteEntryHandler = async (
   req: Request<{ entryId: string }>,
   res: Response,
 ) => {
   try {
-    const { entryId } = req.params;
-    const userId = req.user!.userId;
-
-    // Check ownership
-    const entry = await prisma.studyEntry.findUnique({
-      where: { id: parseInt(entryId) },
-    });
-
-    if (!entry) {
-      return res.status(404).json({ error: "Entry not found" });
-    }
-
-    if (entry.userId !== userId) {
-      return res
-        .status(403)
-        .json({ error: "Not authorized to delete this entry" });
-    }
-
-    // Delete entry
-    await prisma.studyEntry.delete({
-      where: { id: parseInt(entryId) },
-    });
-
-    res.status(204).send();
-  } catch (error) {
+    await deleteEntry(parseInt(req.params.entryId, 10), req.user!.userId);
+    return res.status(204).send();
+  } catch (error: any) {
     console.error("Delete entry error:", error);
-    res.status(500).json({ error: "Failed to delete entry" });
+    return res.status(error.statusCode || 500).json({ error: error.message || "Failed to delete entry" });
   }
 };
