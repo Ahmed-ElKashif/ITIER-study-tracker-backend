@@ -1,11 +1,27 @@
-# itier — Study Tracker for ITI Students
+# ITIER — Study Tracker for ITI Students
 
-Mobile-first study tracking platform for ITI students and supervisors.
+> **Phase 2** — Role-based backend with student approval workflow, admin panel, and track management.
+
+Mobile-first study tracking platform for ITI students, supervisors, and administrators.
+
+---
+
+## What's New in Phase 2
+
+| Feature | Description |
+|---|---|
+| 🔐 Role hierarchy | `ADMIN → SUPERVISOR → STUDENT` |
+| ⏳ Approval workflow | Students register as `PENDING_APPROVAL` — supervisor must approve before login |
+| 🎓 Track management | Supervisors create and manage their own tracks |
+| 🛡️ Admin panel | Full CRUD over users, supervisors, tracks, and analytics |
+| 🏗️ Service layer | All controllers decoupled into Controller + Service architecture |
+| 🔒 Status-gated login | Pending / Suspended / Archived accounts blocked with specific `errorCode` |
+
+---
 
 ## Features
 
 ### For Students
-
 - 📝 Log daily study entries (subject, hours, notes)
 - 📊 View study history with total statistics
 - 🏆 Daily/weekly leaderboards (Codeforces-style)
@@ -13,37 +29,43 @@ Mobile-first study tracking platform for ITI students and supervisors.
 - 📈 Weekly and monthly progress tracking
 
 ### For Supervisors
-
-- 👥 Monitor all students in your track
+- 👥 Monitor all active students in your track
+- ⏳ Review and approve/reject pending registrations
 - 📊 Track-level analytics (average hours, top subject)
-- 🔍 Search and filter students by name/username
-- 📈 View individual student details and subject breakdown
-- 🏆 Track leaderboard view
+- 🔍 View individual student details and subject breakdown
+
+### For Admins
+- ➕ Create supervisor accounts (auto-generated temp passwords)
+- 📊 System dashboard (student/supervisor/track counts)
+- 📈 Analytics — top students, subject distribution, track stats
+- 🔧 Manage all students (filter, search, suspend, delete)
+
+---
 
 ## Tech Stack
 
-**Frontend (Mobile):**
+**Backend (API):**
+- Node.js + Express 5 + TypeScript
+- PostgreSQL (Supabase) + Prisma ORM
+- JWT Authentication + bcrypt password hashing
+- Controller / Service architecture
 
+**Frontend (Mobile):**
 - React Native 0.85 + TypeScript
 - React Navigation (Stack + Bottom Tabs)
 - React Hook Form + Yup validation
-- Axios (HTTP client)
-- AsyncStorage (token persistence)
+- Axios + AsyncStorage
 
-**Backend (API):**
-
-- Node.js + Express + TypeScript
-- PostgreSQL + Prisma ORM
-- JWT Authentication
-- bcrypt password hashing
+---
 
 ## Prerequisites
 
 - Node.js >= 22.11.0
 - PostgreSQL database (Supabase / Railway / Local)
 - React Native development environment
-- **Expo Go** app installed on your physical Android/iOS device
-- Node.js >= 18.0.0
+- **Expo Go** app installed on your physical device
+
+---
 
 ## Setup Instructions
 
@@ -51,101 +73,184 @@ Mobile-first study tracking platform for ITI students and supervisors.
 
 ```bash
 # Navigate to backend folder
-cd study-tracker-backend
+cd ITIER-Back-End
 
 # Install dependencies
 npm install
 
 # Create .env file
 cp .env.example .env
-# Edit .env with your DATABASE_URL and JWT_SECRET
+# Edit .env — set DATABASE_URL and JWT_SECRET
 
-# Run migrations
-npx prisma migrate dev
+# Apply Phase 2 migration
+npx prisma migrate deploy
 npx prisma generate
 
-# Seed demo data
+# Seed demo data (admin + supervisors + tracks + students)
 npx prisma db seed
 
-# Start server
+# Start dev server
 npm run dev
+# → Server running at http://localhost:3000
 ```
-
-The server runs at `http://localhost:3000`.
 
 ### 2. Mobile App (Expo)
 
 ```bash
-# Navigate to mobile app folder
 cd StudyTracker
-
-# Install dependencies
 npm install
-
-# Start Expo development server
 npx expo start
 ```
 
-### 3. Testing on Physical Device
+> **Note:** Update `API_BASE_URL` in `src/api/client.ts` with your PC's local IP (e.g. `192.168.1.5`) — not `localhost` — so the physical device can reach the backend.
 
-1. Download **Expo Go** from the Google Play Store (Android) or App Store (iOS).
-2. Connect your phone to the same WiFi network as your PC.
-3. Open the Camera app (iOS) or Expo Go app (Android) and scan the QR code that appears in your terminal after running `npx expo start`.
+### 3. Run Backend Tests
 
-> **Note:** The app is configured to connect to your local backend. You MUST update the `API_BASE_URL` in `src/api/client.ts` with your PC's local IP address (e.g., `192.168.1.5`) instead of `localhost` or `10.0.2.2`.
+```bash
+# Full test suite
+npm test
 
-## Demo Credentials
+# Phase 2 approval workflow E2E test only
+npm test -- phase2-flow
+```
 
-After running the seed script:
+---
 
-| Role       | Username    | Password    |
-| ---------- | ----------- | ----------- |
-| Student    | student1    | password123 |
-| Supervisor | supervisor1 | password123 |
+## Demo Credentials (after seeding)
+
+| Role | Username | Password |
+|---|---|---|
+| Admin | `ahmed_admin` | `admin123` |
+| Supervisor | `amira_supervisor` | `supervisor123` |
+| Supervisor | `hassan_supervisor` | `supervisor123` |
+| Student | `student1` | `password123` |
+| Student | `student2` | `password123` |
+
+> Students registered **after** seeding will start as `PENDING_APPROVAL` — a supervisor must approve them before they can log in.
+
+---
 
 ## Project Structure
 
 ```
-study-tracker-backend/
+ITIER-Back-End/
+├── docs/
+│   └── API.md                    ← Full Phase 2 API documentation
 ├── prisma/
-│   ├── schema.prisma
-│   ├── migrations/
-│   └── seed.ts
+│   ├── schema.prisma             ← Role, StudentStatus, Track models
+│   ├── seed.ts                   ← Admin + supervisors + tracks + students
+│   └── migrations/
 ├── src/
-│   ├── controllers/
-│   ├── middleware/
-│   ├── routes/
-│   ├── services/
+│   ├── controllers/              ← HTTP layer only (parse, validate, respond)
+│   │   ├── auth.controller.ts
+│   │   ├── entry.controller.ts
+│   │   ├── supervisor.controller.ts
+│   │   ├── track.controller.ts
+│   │   └── admin.controller.ts
+│   ├── services/                 ← Business logic + Prisma queries
+│   │   ├── auth.service.ts
+│   │   ├── entry.service.ts
+│   │   ├── supervisor.service.ts
+│   │   ├── track.service.ts
+│   │   ├── admin.service.ts
+│   │   ├── analytics.service.ts
+│   │   └── quote.service.ts
+│   ├── routes/                   ← Express routers with role middleware
+│   ├── middleware/               ← authenticate + requireRole
+│   ├── types/                    ← JWTPayload, RegisterRequest, etc.
 │   └── app.ts
-└── tests/
+├── tests/
+│   ├── auth.test.ts
+│   ├── entries.test.ts
+│   └── phase2-flow.test.ts       ← 12-step E2E approval workflow test
+├── Study-Tracker-Phase2.postman_collection.json
+└── vercel.json
 
-StudyTracker/           ← React Native App
+StudyTracker/                     ← React Native App
 ├── src/
-│   ├── api/            ← Axios client & endpoints
-│   ├── components/     ← Reusable UI components
-│   ├── contexts/       ← AuthContext (user session)
-│   ├── navigation/     ← Stack & Tab navigators
+│   ├── api/                      ← Axios client & endpoints
+│   ├── components/               ← Reusable UI components
+│   ├── contexts/                 ← AuthContext (user session)
+│   ├── navigation/               ← Stack & Tab navigators
 │   ├── screens/
-│   │   ├── auth/       ← Login, Register
-│   │   ├── student/    ← Home, AddEntry, History, Leaderboard
-│   │   └── supervisor/ ← Dashboard, Students, Leaderboard
-│   ├── types/          ← TypeScript interfaces
-│   └── utils/          ← Theme (colors, spacing)
+│   │   ├── auth/                 ← Login, Register (track selection)
+│   │   ├── student/              ← Home, AddEntry, History, Leaderboard
+│   │   └── supervisor/           ← Dashboard, PendingApprovals, Students
+│   └── types/
 └── App.tsx
 ```
 
-## API Endpoints
+---
 
-See `docs/API.md` for complete API documentation.
+## API Overview
 
-## Future Enhancements
+Full documentation at [`docs/API.md`](./docs/API.md).
 
-- Course results tracking
-- KPI dashboards for instructors
-- Push notifications for daily reminders
-- Data visualization charts
-- Export reports (PDF/Excel)
-- Instructor role
+### Auth
+
+| Method | Route | Auth | Description |
+|---|---|---|---|
+| POST | `/api/v1/auth/register` | Public | Student registration (→ PENDING_APPROVAL) |
+| POST | `/api/v1/auth/login` | Public | Login (blocks PENDING/SUSPENDED/ARCHIVED) |
+
+### Tracks
+
+| Method | Route | Auth | Description |
+|---|---|---|---|
+| GET | `/api/v1/tracks` | Public | Active tracks list for registration |
+| POST | `/api/v1/tracks` | SUPERVISOR | Create track (1 per supervisor) |
+| PUT | `/api/v1/tracks/:id` | SUPERVISOR | Update own track |
+| GET | `/api/v1/tracks/me` | SUPERVISOR | Own track with live student count |
+
+### Supervisor
+
+| Method | Route | Description |
+|---|---|---|
+| GET | `/api/v1/supervisor/pending-students` | Students awaiting approval |
+| POST | `/api/v1/supervisor/students/:id/approve` | Approve → ACTIVE |
+| POST | `/api/v1/supervisor/students/:id/reject` | Reject → ARCHIVED |
+| GET | `/api/v1/supervisor/track-overview` | Full track dashboard |
+
+### Admin
+
+| Method | Route | Description |
+|---|---|---|
+| POST | `/api/v1/admin/supervisors` | Create supervisor (temp password) |
+| GET | `/api/v1/admin/dashboard` | System-wide counts |
+| GET | `/api/v1/admin/analytics` | Top students, subject distribution |
+| GET | `/api/v1/admin/students` | All students with filters + stats |
+| PUT | `/api/v1/admin/students/:id/status` | Suspend / reinstate / archive |
+| DELETE | `/api/v1/admin/users/:id` | Delete user |
+
+---
+
+## Postman Collection
+
+Import `Study-Tracker-Phase2.postman_collection.json` into Postman.
+
+The collection includes **13 tests** with automatic token/ID chaining via collection variables — run the entire flow with one click using **Collection Runner**.
+
+---
+
+## Git Branch Strategy
+
+| Branch | Purpose |
+|---|---|
+| `main` | Production-ready, always deployable |
+| `feature/phase2-backend` | Phase 2 backend (merged into main) |
+| `feature/day-1-auth` | Phase 1 auth (archived) |
+| `feature/day-2-core` | Phase 1 core (archived) |
+| `feature/day-3-supervisor` | Phase 1 supervisor (archived) |
+
+---
+
+## Upcoming (Days 13-15)
+
+- **Day 13** — React Native UI: track selection screen, pending approval screen, supervisor approval interface
+- **Day 14** — Admin panel mobile UI, KPI dashboard for supervisors
+- **Day 15** — Integration testing, deployment to Vercel
+
+---
 
 ## License
 
@@ -153,6 +258,5 @@ MIT
 
 ## Author
 
-Ahmed ElKashif
-ITP Front-End & Mobile Dev Track
-ITI 2026
+Ahmed ElKashif  
+ITP Front-End & Mobile Dev Track — ITI 2026
