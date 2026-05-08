@@ -6,6 +6,7 @@ import { registerUser, loginUser } from "../services/auth.service";
 export const register = async (
   req: Request<{}, {}, RegisterRequest>,
   res: Response,
+  next: NextFunction
 ) => {
   try {
     const { username, email, password, fullName, trackId } = req.body;
@@ -41,6 +42,7 @@ export const register = async (
 export const login = async (
   req: Request<{}, {}, LoginRequest>,
   res: Response,
+  next: NextFunction
 ) => {
   try {
     const { username, password } = req.body;

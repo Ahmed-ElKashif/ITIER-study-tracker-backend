@@ -16,6 +16,17 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Security Middleware
+app.use(helmet()); // Set security HTTP headers
+
+// Rate limiting
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // limit each IP to 100 requests per windowMs
+  message: "Too many requests from this IP, please try again after 15 minutes",
+});
+app.use("/api", limiter);
+
 // Middleware
 app.use(
   cors({
