@@ -8,35 +8,72 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// ==================== ENUMS ====================
+
 enum Role {
-  STUDENT
+  ADMIN
   SUPERVISOR
+  STUDENT
 }
 
+enum StudentStatus {
+  PENDING_APPROVAL // Student registered but awaiting supervisor approval
+  ACTIVE           // Approved and can use the app
+  SUSPENDED        // Temporarily disabled by admin/supervisor
+  ARCHIVED         // Old/graduated students
+}
+
+// ==================== MODELS ====================
+
 model User {
-  id           Int          @id @default(autoincrement())
-  username     String       @unique @db.VarChar(50)
-  email        String       @unique @db.VarChar(100)
-  passwordHash String       @db.VarChar(255)
+  id           Int           @id @default(autoincrement())
+  username     String        @unique @db.VarChar(50)
+  email        String        @unique @db.VarChar(100)
+  passwordHash String        @db.VarChar(255)
   role         Role
-  fullName     String       @db.VarChar(100)
-  trackId      Int
-  track        Track        @relation(fields: [trackId], references: [id])
+  fullName     String        @db.VarChar(100)
+
+  // Status for students (supervisors/admins always ACTIVE)
+  status       StudentStatus @default(PENDING_APPROVAL)
+
+  // Track assignment (null for admins)
+  trackId      Int?
+  track        Track?        @relation("TrackMembers", fields: [trackId], references: [id])
+
+  // Study entries (students only)
   studyEntries StudyEntry[]
-  createdAt    DateTime     @default(now())
-  updatedAt    DateTime     @updatedAt
+
+  // Tracks created/owned by this supervisor
+  createdTracks Track[]      @relation("SupervisorCreatedTracks")
+
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
 
   @@index([trackId])
+  @@index([status])
+  @@index([role])
   @@map("users")
 }
 
 model Track {
-  id           Int      @id @default(autoincrement())
-  name         String   @db.VarChar(100)
-  supervisorId Int
-  users        User[]
-  createdAt    DateTime @default(now())
+  id          Int      @id @default(autoincrement())
+  name        String   @db.VarChar(100)
+  description String?  @db.Text
+  duration    String?  @db.VarChar(50) // e.g., "9 months", "6 months ITP"
+  maxStudents Int? // Optional capacity limit
+  isActive    Boolean  @default(true)
 
+  // Supervisor who created/owns this track
+  createdById Int
+  createdBy   User     @relation("SupervisorCreatedTracks", fields: [createdById], references: [id])
+
+  // Students and supervisors assigned to this track
+  members     User[]   @relation("TrackMembers")
+
+  createdAt   DateTime @default(now())
+
+  @@index([createdById])
+  @@index([isActive])
   @@map("tracks")
 }
 

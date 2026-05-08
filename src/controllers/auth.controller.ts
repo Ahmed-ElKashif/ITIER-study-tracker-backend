@@ -1,71 +1,43 @@
 import { Request, Response } from "express";
-import bcrypt from "bcrypt";
-import jwt from "jsonwebtoken";
-import { prisma } from "../config/prisma";
-import { RegisterRequest, LoginRequest, JWTPayload } from "../types";
+import { RegisterRequest, LoginRequest } from "../types";
+import { registerUser, loginUser } from "../services/auth.service";
 
-const JWT_SECRET = process.env.JWT_SECRET || "fallback-secret";
-const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || "7d";
-
-// Register new user
+// POST /api/v1/auth/register
 export const register = async (
   req: Request<{}, {}, RegisterRequest>,
   res: Response,
 ) => {
   try {
-    const { username, email, password, fullName, role, trackId } = req.body;
+    const { username, email, password, fullName, trackId } = req.body;
 
-    // Validate input
-    if (!username || !email || !password || !fullName || !role || !trackId) {
-      return res.status(400).json({ error: "All fields are required" });
+    // trackId is mandatory for self-service student registration
+    if (!username || !email || !password || !fullName || !trackId) {
+      return res.status(400).json({
+        error: "All fields are required: username, email, password, fullName, trackId",
+      });
     }
 
-    // Check if username or email already exists
-    const existingUser = await prisma.user.findFirst({
-      where: {
-        OR: [
-          { username: username.toLowerCase() },
-          { email: email.toLowerCase() },
-        ],
-      },
-    });
+    const result = await registerUser({ username, email, password, fullName, trackId });
 
-    if (existingUser) {
-      return res
-        .status(400)
-        .json({ error: "Username or email already exists" });
-    }
-
-    // Hash password
-    const passwordHash = await bcrypt.hash(password, 10);
-
-    // Create user
-    const user = await prisma.user.create({
-      data: {
-        username: username.toLowerCase(),
-        email: email.toLowerCase(),
-        passwordHash,
-        fullName,
-        role,
-        trackId: parseInt(trackId.toString()),
-      },
-    });
-
-    res.status(201).json({
+    return res.status(201).json({
       success: true,
+      message: result.message,
       data: {
-        userId: user.id,
-        username: user.username,
-        role: user.role,
+        userId: result.userId,
+        username: result.username,
+        status: result.status,
+        track: result.track,
       },
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Registration error:", error);
-    res.status(500).json({ error: "Registration failed" });
+    return res
+      .status(error.statusCode || 500)
+      .json({ error: error.message || "Registration failed", ...(error.data || {}) });
   }
 };
 
-// Login user
+// POST /api/v1/auth/login
 export const login = async (
   req: Request<{}, {}, LoginRequest>,
   res: Response,
@@ -73,55 +45,19 @@ export const login = async (
   try {
     const { username, password } = req.body;
 
-    // Validate input
     if (!username || !password) {
-      return res
-        .status(400)
-        .json({ error: "Username and password are required" });
+      return res.status(400).json({ error: "Username and password are required" });
     }
 
-    // Find user
-    const user = await prisma.user.findUnique({
-      where: { username: username.toLowerCase() },
-    });
+    const result = await loginUser({ username, password });
 
-    if (!user) {
-      return res.status(401).json({ error: "Invalid credentials" });
-    }
-
-    // Verify password
-    const isValidPassword = await bcrypt.compare(password, user.passwordHash);
-
-    if (!isValidPassword) {
-      return res.status(401).json({ error: "Invalid credentials" });
-    }
-
-    // Generate JWT
-    const payload: JWTPayload = {
-      userId: user.id,
-      username: user.username,
-      role: user.role,
-      trackId: user.trackId,
-    };
-
-    const token = jwt.sign(payload, JWT_SECRET, {
-      expiresIn: JWT_EXPIRES_IN as jwt.SignOptions["expiresIn"],
-    });
-    res.json({
-      success: true,
-      data: {
-        token,
-        user: {
-          id: user.id,
-          username: user.username,
-          fullName: user.fullName,
-          role: user.role,
-          trackId: user.trackId,
-        },
-      },
-    });
-  } catch (error) {
+    return res.json({ success: true, data: result });
+  } catch (error: any) {
     console.error("Login error:", error);
-    res.status(500).json({ error: "Login failed" });
+    // Spread error.data so PENDING_APPROVAL / SUSPENDED status + errorCode
+    // reach the React Native client for proper UI branching
+    return res
+      .status(error.statusCode || 500)
+      .json({ error: error.message || "Login failed", ...(error.data || {}) });
   }
 };

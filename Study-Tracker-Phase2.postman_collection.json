@@ -1,0 +1,352 @@
+{
+  "info": {
+    "name": "Study Tracker Phase 2",
+    "_postman_id": "itier-phase2-collection",
+    "description": "Complete test suite for Study Tracker Phase 2 — covers the full approval workflow:\nAdmin → Create Supervisor → Supervisor Create Track → Student Register (PENDING) → Student Login Blocked → Supervisor Approve → Student Login Success → Add Entry",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "BASE_URL", "value": "http://localhost:3000/api/v1", "type": "string" },
+    { "key": "adminToken",      "value": "", "type": "string" },
+    { "key": "supervisorToken", "value": "", "type": "string" },
+    { "key": "studentToken",    "value": "", "type": "string" },
+    { "key": "trackId",         "value": "", "type": "string" },
+    { "key": "studentId",       "value": "", "type": "string" }
+  ],
+  "item": [
+    {
+      "name": "Test 1 — Admin Login",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+              "const json = pm.response.json();",
+              "pm.test('Has token', () => pm.expect(json.data.token).to.be.a('string'));",
+              "pm.collectionVariables.set('adminToken', json.data.token);",
+              "console.log('✅ adminToken saved');"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "url": "{{BASE_URL}}/auth/login",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"username\": \"ahmed_admin\",\n  \"password\": \"admin123\"\n}"
+        }
+      }
+    },
+    {
+      "name": "Test 2 — Admin Get Dashboard",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+              "const json = pm.response.json();",
+              "pm.test('Has student stats', () => pm.expect(json.data.students).to.have.property('total'));",
+              "console.log('📊 Dashboard:', JSON.stringify(json.data, null, 2));"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "url": "{{BASE_URL}}/admin/dashboard",
+        "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }]
+      }
+    },
+    {
+      "name": "Test 3 — Admin Create Supervisor",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+              "const json = pm.response.json();",
+              "pm.test('Has temporary password', () => pm.expect(json.data.temporaryPassword).to.be.a('string'));",
+              "console.log('🔐 Temp password:', json.data.temporaryPassword);",
+              "console.log('👤 Username:', json.data.supervisor.username);",
+              "pm.collectionVariables.set('newSupUsername', json.data.supervisor.username);",
+              "pm.collectionVariables.set('newSupPassword', json.data.temporaryPassword);"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "url": "{{BASE_URL}}/admin/supervisors",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"testsup@iti.com\",\n  \"fullName\": \"Test Supervisor\"\n}"
+        }
+      }
+    },
+    {
+      "name": "Test 4 — Supervisor Login",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+              "const json = pm.response.json();",
+              "pm.collectionVariables.set('supervisorToken', json.data.token);",
+              "console.log('✅ supervisorToken saved');"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "url": "{{BASE_URL}}/auth/login",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"username\": \"amira_supervisor\",\n  \"password\": \"supervisor123\"\n}"
+        }
+      }
+    },
+    {
+      "name": "Test 5 — Supervisor Create Track",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+              "const json = pm.response.json();",
+              "pm.collectionVariables.set('trackId', String(json.data.id));",
+              "console.log('🎓 Track created, id =', json.data.id);"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "url": "{{BASE_URL}}/tracks",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{supervisorToken}}" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Test Track (3 months)\",\n  \"description\": \"E2E test track\",\n  \"duration\": \"3 months\",\n  \"maxStudents\": 5\n}"
+        }
+      }
+    },
+    {
+      "name": "Test 6 — Get Active Tracks (No Auth)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+              "const json = pm.response.json();",
+              "pm.test('Returns array', () => pm.expect(json.data).to.be.an('array'));",
+              "console.log('📋 Active tracks:', json.data.map(t => t.name));"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "url": "{{BASE_URL}}/tracks"
+      }
+    },
+    {
+      "name": "Test 7 — Student Register (→ PENDING)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+              "const json = pm.response.json();",
+              "pm.test('Status is PENDING_APPROVAL', () => pm.expect(json.data.status).to.equal('PENDING_APPROVAL'));",
+              "pm.collectionVariables.set('studentId', String(json.data.userId));",
+              "console.log('⏳ Student registered, id =', json.data.userId, 'status =', json.data.status);"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "url": "{{BASE_URL}}/auth/register",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"username\": \"teststudent1\",\n  \"email\": \"test1@iti.com\",\n  \"password\": \"password123\",\n  \"fullName\": \"Test Student One\",\n  \"trackId\": {{trackId}}\n}"
+        }
+      }
+    },
+    {
+      "name": "Test 8 — Student Login BLOCKED (PENDING) → expect 403",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status is 403', () => pm.response.to.have.status(403));",
+              "const json = pm.response.json();",
+              "pm.test('errorCode is PENDING_APPROVAL', () => pm.expect(json.errorCode).to.equal('PENDING_APPROVAL'));",
+              "console.log('⛔ Login blocked correctly:', json.error);"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "url": "{{BASE_URL}}/auth/login",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"username\": \"teststudent1\",\n  \"password\": \"password123\"\n}"
+        }
+      }
+    },
+    {
+      "name": "Test 9 — Supervisor Get Pending Students",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+              "const json = pm.response.json();",
+              "pm.test('Pending list not empty', () => pm.expect(json.count).to.be.above(0));",
+              "console.log('⏳ Pending students:', json.data.map(s => s.username));"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "url": "{{BASE_URL}}/supervisor/pending-students",
+        "header": [{ "key": "Authorization", "value": "Bearer {{supervisorToken}}" }]
+      }
+    },
+    {
+      "name": "Test 10 — Supervisor Approve Student",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+              "const json = pm.response.json();",
+              "pm.test('Status is now ACTIVE', () => pm.expect(json.data.status).to.equal('ACTIVE'));",
+              "console.log('✅ Approved:', json.data.fullName, '→', json.data.status);"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "url": "{{BASE_URL}}/supervisor/students/{{studentId}}/approve",
+        "header": [{ "key": "Authorization", "value": "Bearer {{supervisorToken}}" }]
+      }
+    },
+    {
+      "name": "Test 11 — Student Login SUCCEEDS (ACTIVE)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+              "const json = pm.response.json();",
+              "pm.test('Has token', () => pm.expect(json.data.token).to.be.a('string'));",
+              "pm.test('Status is ACTIVE', () => pm.expect(json.data.user.status).to.equal('ACTIVE'));",
+              "pm.collectionVariables.set('studentToken', json.data.token);",
+              "console.log('✅ studentToken saved, status =', json.data.user.status);"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "url": "{{BASE_URL}}/auth/login",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"username\": \"teststudent1\",\n  \"password\": \"password123\"\n}"
+        }
+      }
+    },
+    {
+      "name": "Test 12 — Student Add Study Entry",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+              "const json = pm.response.json();",
+              "pm.test('Entry has subject', () => pm.expect(json.data.subject).to.equal('Testing Phase 2'));",
+              "console.log('📚 Entry created:', json.data);"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "url": "{{BASE_URL}}/entries",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{studentToken}}" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"subject\": \"Testing Phase 2\",\n  \"hours\": 2,\n  \"date\": \"2026-05-08\",\n  \"notes\": \"E2E test entry\"\n}"
+        }
+      }
+    },
+    {
+      "name": "Test 13 — Admin Analytics",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+              "const json = pm.response.json();",
+              "pm.test('Has trackStats', () => pm.expect(json.data.trackStats).to.be.an('array'));",
+              "pm.test('Has topStudents', () => pm.expect(json.data.topStudents).to.be.an('array'));",
+              "console.log('📊 Analytics OK');"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "url": "{{BASE_URL}}/admin/analytics",
+        "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }]
+      }
+    }
+  ]
+}

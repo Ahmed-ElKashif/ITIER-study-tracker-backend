@@ -7,6 +7,8 @@ import entryRoutes from "./routes/entry.routes";
 import leaderboardRoutes from "./routes/leaderboard.routes";
 import quoteRoutes from "./routes/quote.routes";
 import supervisorRoutes from "./routes/supervisor.routes";
+import adminRoutes from "./routes/admin.routes";
+import trackRoutes from "./routes/track.routes";
 
 // Load environment variables
 dotenv.config();
@@ -40,6 +42,10 @@ app.use("/api/v1/leaderboard", leaderboardRoutes);
 app.use("/api/v1/quotes", quoteRoutes);
 
 app.use("/api/v1/supervisor", supervisorRoutes);
+
+app.use("/api/v1/admin", adminRoutes);
+
+app.use("/api/v1/tracks", trackRoutes);
 
 // Error handler (must be last)
 app.use(errorHandler);

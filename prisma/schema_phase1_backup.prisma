@@ -1,0 +1,56 @@
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  STUDENT
+  SUPERVISOR
+}
+
+model User {
+  id           Int          @id @default(autoincrement())
+  username     String       @unique @db.VarChar(50)
+  email        String       @unique @db.VarChar(100)
+  passwordHash String       @db.VarChar(255)
+  role         Role
+  fullName     String       @db.VarChar(100)
+  trackId      Int
+  track        Track        @relation(fields: [trackId], references: [id])
+  studyEntries StudyEntry[]
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  @@index([trackId])
+  @@map("users")
+}
+
+model Track {
+  id           Int      @id @default(autoincrement())
+  name         String   @db.VarChar(100)
+  supervisorId Int
+  users        User[]
+  createdAt    DateTime @default(now())
+
+  @@map("tracks")
+}
+
+model StudyEntry {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subject   String   @db.VarChar(100)
+  hours     Decimal  @db.Decimal(4, 2)
+  date      DateTime @db.Date
+  notes     String?  @db.Text
+  createdAt DateTime @default(now())
+
+  @@index([userId, date(sort: Desc)])
+  @@index([date(sort: Desc)])
+  @@map("study_entries")
+}
