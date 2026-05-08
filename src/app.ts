@@ -1,10 +1,11 @@
-import express from "express";
+import express, { Request, Response, NextFunction } from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 import helmet from "helmet";
+import hpp from "hpp";
 import rateLimit from "express-rate-limit";
+import { logger } from "./config/logger";
 import authRoutes from "./routes/auth.routes";
-import { errorHandler } from "./middleware/errorHandler";
 import entryRoutes from "./routes/entry.routes";
 import leaderboardRoutes from "./routes/leaderboard.routes";
 import quoteRoutes from "./routes/quote.routes";
@@ -15,41 +16,60 @@ import trackRoutes from "./routes/track.routes";
 dotenv.config();
 
 const app = express();
-const PORT = process.env.PORT || 3000;
 
-// Security headers
+// ── Security headers ──────────────────────────────────────────────────────────
 app.use(helmet());
 
-// Rate limiting
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 100,
-  message: "Too many requests from this IP, please try again after 15 minutes",
-});
-app.use("/api", limiter);
+// ── HTTP Parameter Pollution prevention ───────────────────────────────────────
+app.use(hpp());
 
-// CORS — allow all origins (React Native doesn't send Origin header)
+// ── Rate limiting ─────────────────────────────────────────────────────────────
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000,  // 15 minutes
+  max: 100,                   // 100 requests per window per IP
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many requests. Please try again in 15 minutes." },
+  skip: () => process.env.NODE_ENV === "test", // Disable during tests
+});
+app.use(limiter);
+
+// ── Auth routes get a stricter limit ─────────────────────────────────────────
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20, // 20 login attempts per 15 minutes per IP
+  message: { error: "Too many login attempts. Please wait 15 minutes." },
+  skip: () => process.env.NODE_ENV === "test",
+});
+
+// ── CORS — MUST be first ──────────────────────────────────────────────────────
+// React Native apps don't send an Origin header, so we allow all origins.
+// Security is handled by JWT tokens on protected routes.
 app.use(
   cors({
-    origin: "*",
+    origin: (_origin, callback) => callback(null, true),
+    credentials: true,
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
-  }),
+  })
 );
-app.options("*", cors());
+app.options("/{*splat}", cors()); // Express v5: named wildcard required
 
-// Body parsing
+// ── Body parsing ──────────────────────────────────────────────────────────────
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Request logger
-app.use((req, _res, next) => {
-  console.log(`[${new Date().toISOString()}] ${req.method} ${req.path}`);
+// ── Request logger (Winston) ──────────────────────────────────────────────────
+app.use((req: Request, _res: Response, next: NextFunction) => {
+  logger.info(`${req.method} ${req.path}`, {
+    ip: req.ip,
+    userAgent: req.get("User-Agent"),
+  });
   next();
 });
 
-// Health check
-app.get("/health", (_req, res) => {
+// ── Health check ──────────────────────────────────────────────────────────────
+app.get("/health", (_req: Request, res: Response) => {
   res.json({
     status: "ok",
     timestamp: new Date().toISOString(),
@@ -57,8 +77,8 @@ app.get("/health", (_req, res) => {
   });
 });
 
-// Routes
-app.use("/api/v1/auth", authRoutes);
+// ── Routes ────────────────────────────────────────────────────────────────────
+app.use("/api/v1/auth", authLimiter, authRoutes);
 app.use("/api/v1/entries", entryRoutes);
 app.use("/api/v1/leaderboard", leaderboardRoutes);
 app.use("/api/v1/quotes", quoteRoutes);
@@ -66,8 +86,8 @@ app.use("/api/v1/supervisor", supervisorRoutes);
 app.use("/api/v1/admin", adminRoutes);
 app.use("/api/v1/tracks", trackRoutes);
 
-// 404 catch-all
-app.use((req, res) => {
+// ── 404 catch-all ─────────────────────────────────────────────────────────────
+app.use((req: Request, res: Response) => {
   res.status(404).json({
     error: "Route not found",
     path: req.path,
@@ -75,13 +95,22 @@ app.use((req, res) => {
   });
 });
 
-// Error handler (must be last)
-app.use(errorHandler);
-
-// Start server — always called, Vercel ignores the port but needs this to run
-app.listen(PORT, () => {
-  console.log(`🚀 Server running on http://localhost:${PORT}`);
-  console.log(`📊 Environment: ${process.env.NODE_ENV || "development"}`);
+// ── Global error handler ──────────────────────────────────────────────────────
+app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
+  logger.error("Unhandled error", { message: err.message, stack: err.stack });
+  const status = err.statusCode || err.status || 500;
+  res.status(status).json({
+    error: err.message || "Internal server error",
+  });
 });
+
+// ── Start server (skip in test — supertest handles binding) ─────────────────
+if (process.env.NODE_ENV !== "test") {
+  const PORT = process.env.PORT || 3000;
+  app.listen(PORT, () => {
+    logger.info(`🚀 Server running on http://localhost:${PORT}`);
+    logger.info(`📦 Database: Supabase (${process.env.NODE_ENV})`);
+  });
+}
 
 export default app;

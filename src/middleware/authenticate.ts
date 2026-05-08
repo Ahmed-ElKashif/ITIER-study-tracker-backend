@@ -28,12 +28,13 @@ export const authenticate = (
     // 4. Pass control to the next function
     next();
   } catch (error) {
-    if (error instanceof jwt.JsonWebTokenError) {
-      return res.status(403).json({ error: "Invalid token" });
-    }
     if (error instanceof jwt.TokenExpiredError) {
-      return res.status(403).json({ error: "Token expired" });
+      return res.status(401).json({ error: "Token expired" });
+    }
+    if (error instanceof jwt.JsonWebTokenError) {
+      return res.status(401).json({ error: "Invalid token" });
     }
     return res.status(500).json({ error: "Authentication failed" });
   }
 };
+

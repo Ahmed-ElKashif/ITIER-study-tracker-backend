@@ -1,4 +1,5 @@
 import { Request, Response } from "express";
+import { logger } from "../config/logger";
 import {
   getActiveTracksData,
   createTrackForSupervisor,
@@ -12,7 +13,7 @@ export const getActiveTracks = async (req: Request, res: Response) => {
     const data = await getActiveTracksData();
     return res.json({ success: true, data });
   } catch (error: any) {
-    console.error("Get active tracks error:", error);
+    logger.error("Get active tracks error", { error: error.message });
     return res.status(error.statusCode || 500).json({ error: error.message || "Failed to fetch tracks" });
   }
 };
@@ -38,7 +39,7 @@ export const createTrack = async (req: Request, res: Response) => {
 
     return res.status(201).json({ success: true, message: "Track created successfully", data: track });
   } catch (error: any) {
-    console.error("Create track error:", error);
+    logger.error("Create track error", { error: error.message });
     return res.status(error.statusCode || 500).json({ error: error.message || "Failed to create track", ...(error.data || {}) });
   }
 };
@@ -66,7 +67,7 @@ export const updateTrack = async (req: Request, res: Response) => {
 
     return res.json({ success: true, message: "Track updated successfully", data: updated });
   } catch (error: any) {
-    console.error("Update track error:", error);
+    logger.error("Update track error", { error: error.message });
     return res.status(error.statusCode || 500).json({ error: error.message || "Failed to update track" });
   }
 };
@@ -77,7 +78,7 @@ export const getMyTrack = async (req: Request, res: Response) => {
     const data = await getSupervisorTrack(req.user!.userId);
     return res.json({ success: true, data });
   } catch (error: any) {
-    console.error("Get my track error:", error);
+    logger.error("Get my track error", { error: error.message });
     return res.status(error.statusCode || 500).json({ error: error.message || "Failed to fetch your track" });
   }
 };

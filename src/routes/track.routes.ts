@@ -8,6 +8,11 @@ import {
   updateTrack,
   getMyTrack,
 } from "../controllers/track.controller";
+import { validate } from "../middleware/validate";
+import {
+  createTrackSchema,
+  updateTrackSchema,
+} from "../validations/track.validation";
 
 const router = Router();
 
@@ -21,7 +26,7 @@ router.use(authenticate);
 // NOTE: /me MUST be defined before /:trackId to prevent Express matching
 // "me" as a trackId parameter.
 router.get("/me", requireRole([Role.SUPERVISOR]), getMyTrack);
-router.post("/", requireRole([Role.SUPERVISOR]), createTrack);
-router.put("/:trackId", requireRole([Role.SUPERVISOR]), updateTrack);
+router.post("/", requireRole([Role.SUPERVISOR]), validate(createTrackSchema), createTrack);
+router.put("/:trackId", requireRole([Role.SUPERVISOR]), validate(updateTrackSchema), updateTrack);
 
 export default router;

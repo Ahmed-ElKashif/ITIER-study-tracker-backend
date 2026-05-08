@@ -7,15 +7,21 @@ import {
   updateEntryHandler,
   deleteEntryHandler,
 } from "../controllers/entry.controller";
+import { validate } from "../middleware/validate";
+import {
+  createEntrySchema,
+  updateEntrySchema,
+  getEntriesSchema,
+} from "../validations/entry.validation";
 
 const router = Router();
 
 router.use(authenticate);
 router.use(requireRole(["STUDENT"]));
 
-router.post("/", createEntryHandler);
-router.get("/me", getUserEntriesHandler);
-router.put("/:entryId", updateEntryHandler);
+router.post("/", validate(createEntrySchema), createEntryHandler);
+router.get("/me", validate(getEntriesSchema), getUserEntriesHandler);
+router.put("/:entryId", validate(updateEntrySchema), updateEntryHandler);
 router.delete("/:entryId", deleteEntryHandler);
 
 export default router;

@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from "express";
 import { RegisterRequest, LoginRequest } from "../types";
 import { registerUser, loginUser } from "../services/auth.service";
+import { logger } from "../config/logger";
 
 // POST /api/v1/auth/register
 export const register = async (
@@ -31,7 +32,7 @@ export const register = async (
       },
     });
   } catch (error: any) {
-    console.error("Registration error:", error);
+    logger.error("Registration error", { error: error.message });
     return res
       .status(error.statusCode || 500)
       .json({ error: error.message || "Registration failed", ...(error.data || {}) });
@@ -55,7 +56,7 @@ export const login = async (
 
     return res.json({ success: true, data: result });
   } catch (error: any) {
-    console.error("Login error:", error);
+    logger.error("Login error", { error: error.message });
     // Spread error.data so PENDING_APPROVAL / SUSPENDED status + errorCode
     // reach the React Native client for proper UI branching
     return res

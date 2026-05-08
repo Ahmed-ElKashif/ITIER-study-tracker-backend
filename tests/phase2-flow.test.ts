@@ -1,5 +1,6 @@
 import request from "supertest";
 import app from "../src/app";
+import { prisma } from "../src/config/prisma";
 
 /**
  * Phase 2 end-to-end flow test.
@@ -13,6 +14,65 @@ import app from "../src/app";
  * and a clean test database. Run `npm run db:seed` before executing.
  */
 
+/**
+ * Removes all data created by this test suite using fixed identifiers.
+ * FK-safe order:
+ *   1. Null out student trackIds (they reference the supervisor's track)
+ *   2. Delete study entries
+ *   3. Delete the supervisor's track
+ *   4. Delete all test users
+ */
+async function cleanupTestFixtures() {
+  const TEST_USERNAMES = ["flowstudent", "flowstudent2", "flowstudent3"];
+  const TEST_EMAILS = [
+    "flowtest@iti.com",
+    "flowstudent@iti.com",
+    "flowstudent2@iti.com",
+    "flowstudent3@iti.com",
+  ];
+
+  // Find all test users (students + supervisor)
+  const existing = await prisma.user.findMany({
+    where: { OR: [{ username: { in: TEST_USERNAMES } }, { email: { in: TEST_EMAILS } }] },
+    select: { id: true, role: true },
+  });
+
+  if (existing.length === 0) return;
+
+  const allIds        = existing.map((u) => u.id);
+  const supervisorIds = existing.filter((u) => u.role === "SUPERVISOR").map((u) => u.id);
+
+  // 1. Find the tracks owned by test supervisors
+  const testTracks = supervisorIds.length > 0
+    ? await prisma.track.findMany({
+        where: { createdById: { in: supervisorIds } },
+        select: { id: true },
+      })
+    : [];
+  const testTrackIds = testTracks.map((t) => t.id);
+
+  // 2. Null out trackId for ALL members of those tracks (students + supervisor)
+  //    so the FK constraint is satisfied before we delete the track row.
+  if (testTrackIds.length > 0) {
+    await prisma.user.updateMany({
+      where: { trackId: { in: testTrackIds } },
+      data: { trackId: null },
+    });
+  }
+
+  // 3. Delete study entries (FK: studyEntry.userId → user.id)
+  await prisma.studyEntry.deleteMany({ where: { userId: { in: allIds } } });
+
+  // 4. Delete the test tracks (all members now have trackId = null)
+  if (testTrackIds.length > 0) {
+    await prisma.track.deleteMany({ where: { id: { in: testTrackIds } } });
+  }
+
+  // 5. Delete all test users
+  await prisma.user.deleteMany({ where: { id: { in: allIds } } });
+}
+
+
 describe("Phase 2: Approval Workflow (E2E)", () => {
   let adminToken: string;
   let supervisorToken: string;
@@ -20,6 +80,23 @@ describe("Phase 2: Approval Workflow (E2E)", () => {
   let supervisorPassword: string;
   let trackId: number;
   let studentId: number;
+
+  // ── Pre-test cleanup (idempotent — runs before every suite execution) ──────
+  // Deletes any leftovers from a previous interrupted run using fixed identifiers.
+  beforeAll(async () => {
+    await cleanupTestFixtures();
+  });
+
+  // ── Post-test cleanup (same logic, just for hygiene) ───────────────────────
+  afterAll(async () => {
+    try {
+      await cleanupTestFixtures();
+    } catch (_) {
+      // Ignore — best-effort
+    } finally {
+      await prisma.$disconnect();
+    }
+  });
 
   // ── Test 1: Admin login ────────────────────────────────
   it("Admin can login with seeded credentials", async () => {

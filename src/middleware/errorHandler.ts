@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from "express";
 import { AppError } from "../utils/AppError";
+import { logger } from "../config/logger";
 
 export const errorHandler = (
   err: any,
@@ -11,7 +12,7 @@ export const errorHandler = (
   err.status = err.status || "error";
 
   if (process.env.NODE_ENV === "development") {
-    console.error("Error 💥:", err);
+    logger.error("Error 💥", { message: err.message, stack: err.stack });
     res.status(err.statusCode).json({
       status: err.status,
       error: err,
@@ -27,6 +28,7 @@ export const errorHandler = (
       });
     } else {
       console.error("ERROR 💥", err);
+      logger.error("Unexpected error", { message: err.message, stack: err.stack });
       res.status(500).json({
         status: "error",
         message: "Something went very wrong!",

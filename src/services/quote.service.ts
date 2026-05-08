@@ -1,4 +1,5 @@
 import axios from "axios";
+import { logger } from "../config/logger";
 
 const FALLBACK_QUOTES = [
   {
@@ -44,7 +45,7 @@ export const getDailyQuote = async () => {
       category: "technology",
     };
   } catch (error) {
-    console.log("Quote API failed, using fallback");
+    logger.warn("Quote API failed, using fallback", { error: (error as Error).message });
     // Return random fallback quote
     const randomIndex = Math.floor(Math.random() * FALLBACK_QUOTES.length);
     return FALLBACK_QUOTES[randomIndex];

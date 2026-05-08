@@ -11,6 +11,7 @@ import {
   updateStudentStatusById,
   deleteUserById,
 } from "../services/admin.service";
+import { logger } from "../config/logger";
 
 // POST /api/v1/admin/supervisors
 export const createSupervisor = async (req: Request, res: Response) => {
@@ -22,7 +23,7 @@ export const createSupervisor = async (req: Request, res: Response) => {
     const result = await createSupervisorAccount(email, fullName);
     return res.status(201).json({ success: true, data: result });
   } catch (error: any) {
-    console.error("Create supervisor error:", error);
+    logger.error("Create supervisor error", { error: error.message });
     return res.status(error.statusCode || 500).json({ error: error.message || "Failed to create supervisor" });
   }
 };
@@ -33,7 +34,7 @@ export const getAllSupervisors = async (req: Request, res: Response) => {
     const data = await getAllSupervisorsData();
     return res.json({ success: true, data });
   } catch (error: any) {
-    console.error("Get supervisors error:", error);
+    logger.error("Get supervisors error", { error: error.message });
     return res.status(error.statusCode || 500).json({ error: error.message || "Failed to fetch supervisors" });
   }
 };
@@ -44,7 +45,7 @@ export const getDashboard = async (req: Request, res: Response) => {
     const data = await getDashboardStats();
     return res.json({ success: true, data });
   } catch (error: any) {
-    console.error("Dashboard error:", error);
+    logger.error("Dashboard error", { error: error.message });
     return res.status(error.statusCode || 500).json({ error: error.message || "Failed to fetch dashboard data" });
   }
 };
@@ -55,7 +56,7 @@ export const getSystemAnalytics = async (req: Request, res: Response) => {
     const data = await getSystemAnalyticsData();
     return res.json({ success: true, data });
   } catch (error: any) {
-    console.error("Analytics error:", error);
+    logger.error("Analytics error", { error: error.message });
     return res.status(error.statusCode || 500).json({ error: error.message || "Failed to fetch analytics" });
   }
 };
@@ -66,7 +67,7 @@ export const getAllTracks = async (req: Request, res: Response) => {
     const data = await getAllTracksData();
     return res.json({ success: true, data });
   } catch (error: any) {
-    console.error("Get all tracks error:", error);
+    logger.error("Get all tracks error", { error: error.message });
     return res.status(error.statusCode || 500).json({ error: error.message || "Failed to fetch tracks" });
   }
 };
@@ -77,7 +78,7 @@ export const getPendingStudents = async (req: Request, res: Response) => {
     const data = await getAllPendingStudentsData();
     return res.json({ success: true, count: data.length, data });
   } catch (error: any) {
-    console.error("Get pending students error:", error);
+    logger.error("Get pending students error", { error: error.message });
     return res.status(error.statusCode || 500).json({ error: error.message || "Failed to fetch pending students" });
   }
 };
@@ -100,7 +101,7 @@ export const getAllStudents = async (req: Request, res: Response) => {
 
     return res.json({ success: true, count: data.length, data });
   } catch (error: any) {
-    console.error("Get students error:", error);
+    logger.error("Get students error", { error: error.message });
     return res.status(error.statusCode || 500).json({ error: error.message || "Failed to fetch students" });
   }
 };
@@ -128,7 +129,7 @@ export const updateStudentStatus = async (req: Request, res: Response) => {
       data,
     });
   } catch (error: any) {
-    console.error("Update student status error:", error);
+    logger.error("Update student status error", { error: error.message });
     return res.status(error.statusCode || 500).json({ error: error.message || "Failed to update status" });
   }
 };
@@ -148,7 +149,7 @@ export const deleteUser = async (req: Request, res: Response) => {
       message: `User ${result.fullName} deleted successfully`,
     });
   } catch (error: any) {
-    console.error("Delete user error:", error);
+    logger.error("Delete user error", { error: error.message });
     return res.status(error.statusCode || 500).json({ error: error.message || "Failed to delete user" });
   }
 };

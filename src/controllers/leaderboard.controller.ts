@@ -1,4 +1,5 @@
 import { Request, Response } from "express";
+import { logger } from "../config/logger";
 import {
   getDailyRankings,
   getWeeklyRankings,
@@ -26,7 +27,7 @@ export const getDailyLeaderboard = async (req: Request, res: Response) => {
       },
     });
   } catch (error) {
-    console.error("Daily leaderboard error:", error);
+    logger.error("Daily leaderboard error", { error: (error as Error).message });
     res.status(500).json({ error: "Failed to fetch leaderboard" });
   }
 };
@@ -55,7 +56,7 @@ export const getWeeklyLeaderboard = async (req: Request, res: Response) => {
       },
     });
   } catch (error) {
-    console.error("Weekly leaderboard error:", error);
+    logger.error("Weekly leaderboard error", { error: (error as Error).message });
     res.status(500).json({ error: "Failed to fetch leaderboard" });
   }
 };

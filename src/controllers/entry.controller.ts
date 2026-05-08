@@ -1,4 +1,5 @@
 import { Request, Response } from "express";
+import { logger } from "../config/logger";
 import {
   createEntry,
   getUserEntries,
@@ -37,7 +38,7 @@ export const createEntryHandler = async (req: Request, res: Response) => {
       },
     });
   } catch (error: any) {
-    console.error("Create entry error:", error);
+    logger.error("Create entry error", { error: error.message });
     return res.status(error.statusCode || 500).json({ error: error.message || "Failed to create entry" });
   }
 };
@@ -68,7 +69,7 @@ export const getUserEntriesHandler = async (req: Request, res: Response) => {
       },
     });
   } catch (error: any) {
-    console.error("Get entries error:", error);
+    logger.error("Get entries error", { error: error.message });
     return res.status(error.statusCode || 500).json({ error: error.message || "Failed to fetch entries" });
   }
 };
@@ -103,7 +104,7 @@ export const updateEntryHandler = async (
       },
     });
   } catch (error: any) {
-    console.error("Update entry error:", error);
+    logger.error("Update entry error", { error: error.message });
     return res.status(error.statusCode || 500).json({ error: error.message || "Failed to update entry" });
   }
 };
@@ -117,7 +118,7 @@ export const deleteEntryHandler = async (
     await deleteEntry(parseInt(req.params.entryId, 10), req.user!.userId);
     return res.status(204).send();
   } catch (error: any) {
-    console.error("Delete entry error:", error);
+    logger.error("Delete entry error", { error: error.message });
     return res.status(error.statusCode || 500).json({ error: error.message || "Failed to delete entry" });
   }
 };
