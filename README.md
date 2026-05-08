@@ -79,6 +79,11 @@ Student registers → PENDING ─── Supervisor approves ──→ ACTIVE →
 | 6 | 🔒 **Status-Gated Login** | Blocked accounts return specific `errorCode` for React Native screen routing |
 | 7 | 📊 **Parallel Analytics** | Dashboard stats fetched with `Promise.all` — zero sequential query overhead |
 | 8 | 🔢 **Capacity Enforcement** | Track `maxStudents` validated on both register and approve |
+| 9 | 📝 **Structured Logging** | `Winston` implemented across all controllers, generating `combined.log` and `error.log` for production observability |
+| 10 | 🛡️ **Security Hardening** | Added `Helmet` (headers), `HPP` (parameter pollution), and `Express-Rate-Limit` for brute-force protection |
+| 11 | ✅ **Zod Validation** | Strict schema validation bound to all endpoints to reject invalid request payloads instantly |
+| 12 | 🧪 **Unit Testing** | Reached 100% pass rate (36 tests) with idempotent E2E flows and mocked controller unit tests |
+| 13 | ☁️ **Supabase Direct** | Removed Vercel configuration artifacts in favor of a direct, persistent local/Supabase environment |
 
 ---
 
