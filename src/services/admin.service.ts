@@ -76,7 +76,7 @@ export async function getAllSupervisorsData() {
     fullName: s.fullName,
     status: s.status,
     track: s.track
-      ? { id: s.track.id, name: s.track.name, memberCount: s.track._count.members }
+      ? { id: s.track.id, name: s.track.name, studentCount: s.track._count.members }
       : null,
     createdAt: s.createdAt,
   }));

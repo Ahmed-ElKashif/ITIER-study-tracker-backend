@@ -5,7 +5,7 @@ export const getDailyRankings = async (date: Date, trackId: number) => {
   const entries = await prisma.studyEntry.findMany({
     where: {
       date,
-      user: { trackId },
+      user: { trackId, status: "ACTIVE" },
     },
     include: {
       user: {
@@ -65,7 +65,7 @@ export const getWeeklyRankings = async (weekStart: Date, trackId: number) => {
         gte: weekStart,
         lt: weekEnd,
       },
-      user: { trackId },
+      user: { trackId, status: "ACTIVE" },
     },
     include: {
       user: {
