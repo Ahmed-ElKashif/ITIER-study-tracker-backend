@@ -1,8 +1,6 @@
 import express, { Request, Response, NextFunction } from "express";
 import cors from "cors";
 import dotenv from "dotenv";
-import helmet from "helmet";
-import rateLimit from "express-rate-limit";
 import authRoutes from "./routes/auth.routes";
 import entryRoutes from "./routes/entry.routes";
 import leaderboardRoutes from "./routes/leaderboard.routes";
@@ -16,8 +14,8 @@ dotenv.config();
 const app = express();
 
 // ── CORS — MUST be first ──────────────────────────────────────────────────────
-// React Native apps don't send an Origin header, so we allow everything.
-// JWT tokens protect all sensitive routes.
+// React Native apps don't send an Origin header, so we allow all origins.
+// Security is handled by JWT tokens on protected routes.
 app.use(
   cors({
     origin: (_origin, callback) => callback(null, true),
@@ -26,19 +24,7 @@ app.use(
     allowedHeaders: ["Content-Type", "Authorization"],
   })
 );
-app.options("*", cors()); // handle preflight for all routes
-
-// ── Security ──────────────────────────────────────────────────────────────────
-app.use(helmet());
-
-// ── Rate limiting ─────────────────────────────────────────────────────────────
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 100,
-  standardHeaders: true,
-  legacyHeaders: false,
-});
-app.use("/api", limiter);
+app.options("*", cors());
 
 // ── Body parsing ──────────────────────────────────────────────────────────────
 app.use(express.json());
@@ -50,7 +36,7 @@ app.use((req: Request, _res: Response, next: NextFunction) => {
   next();
 });
 
-// ── Health check (root-level, no /api/v1 prefix) ─────────────────────────────
+// ── Health check ──────────────────────────────────────────────────────────────
 app.get("/health", (_req: Request, res: Response) => {
   res.json({
     status: "ok",
@@ -59,7 +45,7 @@ app.get("/health", (_req: Request, res: Response) => {
   });
 });
 
-// ── API Routes ────────────────────────────────────────────────────────────────
+// ── Routes ────────────────────────────────────────────────────────────────────
 app.use("/api/v1/auth", authRoutes);
 app.use("/api/v1/entries", entryRoutes);
 app.use("/api/v1/leaderboard", leaderboardRoutes);
@@ -83,11 +69,10 @@ app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
   const status = err.statusCode || err.status || 500;
   res.status(status).json({
     error: err.message || "Internal server error",
-    ...(process.env.NODE_ENV === "development" && { stack: err.stack }),
   });
 });
 
-// ── Local dev server (Vercel ignores this — it uses the exported app) ─────────
+// ── Local dev only — Vercel uses exported app, not listen() ──────────────────
 if (process.env.NODE_ENV !== "production") {
   const PORT = process.env.PORT || 3000;
   app.listen(PORT, () => {
