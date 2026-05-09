@@ -63,7 +63,7 @@ export async function getAllSupervisorsData() {
     where: { role: Role.SUPERVISOR },
     include: {
       track: {
-        select: { id: true, name: true, _count: { select: { members: true } } },
+        select: { id: true, name: true, _count: { select: { members: { where: { role: Role.STUDENT } } } } },
       },
     },
     orderBy: { createdAt: "desc" },
